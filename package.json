@@ -1,0 +1,55 @@
+{
+  "name": "dsh-video-preview",
+  "version": "0.1.1",
+  "description": "Inline video preview for dsh-better-sidebar: plays .mp4/.webm/.mov/.mkv/.avi etc. in the sidebar editor with HTTP Range (seeking) support via a dedicated /video host route",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "test"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./client": {
+      "default": "./client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "better-sidebar",
+    "video",
+    "preview",
+    "file-viewer"
+  ],
+  "license": "MIT",
+  "author": "zemul <zemul@foxmail.com>",
+  "homepage": "https://github.com/zemul/dsh-video-preview",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zemul/dsh-video-preview.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zemul/dsh-video-preview/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime"
+      ],
+      "platform": "web"
+    }
+  }
+}

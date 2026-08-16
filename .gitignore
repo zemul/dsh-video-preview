@@ -1,0 +1,12 @@
+# Node / pnpm
+node_modules/
+*.log
+*.tgz
+
+# macOS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+coverage/
+.tmp/

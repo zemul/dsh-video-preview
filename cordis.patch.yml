@@ -1,0 +1,15 @@
+# dsh-video-preview bundle patch
+#
+# When the plugin is installed through the official CLI —
+#
+#   dsh plugin --profile <name> add dsh-video-preview
+#
+# — the command reconciles `dsh.profile.bundles` against installed packages
+# and, seeing this declaration, appends `dsh-video-preview` to the bundle
+# stack. The profile boot then merges THIS patch (a single `insert` of the
+# plugin row) exactly like a manual cordis.patch.yml mount line. The entry
+# `name` must equal the package name so the client-modules scan resolves the
+# package's ./client bundle and serves it at /plugins/dsh-video-preview/client.js.
+- insert:
+    - id: video-preview
+      name: 'dsh-video-preview'
