@@ -42,7 +42,6 @@ const VIDEO_TYPES = {
   '.avi': 'video/x-msvideo',
   '.wmv': 'video/x-ms-wmv',
   '.flv': 'video/x-flv',
-  '.ts': 'video/mp2t',
   '.m2ts': 'video/mp2t',
   '.mpeg': 'video/mpeg',
   '.mpg': 'video/mpeg',

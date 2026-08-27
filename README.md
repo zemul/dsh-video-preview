@@ -25,7 +25,7 @@ better-sidebar 内置的文件预览器只有 image / pdf / markdown / html / co
 ## 功能
 
 - 通过 `ctx.betterSidebar.registerFileViewer` 注册 `video` 预览器（id `video`，与内置 viewer 同权）：
-  - `.mp4/.m4v/.webm/.mov/.qt/.mkv/.avi/.wmv/.flv/.ogv/.ogg/.mpeg/.mpg/.3gp/.3g2/.ts/.m2ts`
+  - `.mp4/.m4v/.webm/.mov/.qt/.mkv/.avi/.wmv/.flv/.ogv/.ogg/.mpeg/.mpg/.3gp/.3g2/.m2ts`
   - 内联 `<video controls>`：播放/暂停、拖进度条（Range 206）、倍速、全屏、音量、`preload=metadata`
   - 底部文件名 + 「下载」链接（浏览器无法解码的容器格式仍可下载原文件）
 - 自带 `/video/*` 宿主路由：HTTP Range / If-Range / suffix-range（`bytes=-N`），视频大小不受 `mediaLimit` 限制

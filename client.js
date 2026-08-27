@@ -23,7 +23,7 @@ window.__ModuleLoader__.load({
     /** File extensions this viewer claims (lowercase, no dot). */
     var VIDEO_EXTS = [
       "mp4", "webm", "mov", "qt", "m4v", "mkv", "avi", "wmv", "flv",
-      "ogv", "ogg", "mpeg", "mpg", "3gp", "3g2", "ts", "m2ts"
+      "ogv", "ogg", "mpeg", "mpg", "3gp", "3g2", "m2ts"
     ];
 
     /** Absolute URL of the plugin's range-capable video route. */
