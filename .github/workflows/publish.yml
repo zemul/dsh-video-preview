@@ -17,10 +17,10 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
@@ -36,13 +36,5 @@ jobs:
       - name: Run route tests
         run: node test/route.test.mjs
 
-      - name: Diagnose OIDC env
-        run: |
-          echo "id-token URL set? -> ${ACTIONS_ID_TOKEN_REQUEST_URL:+YES}${ACTIONS_ID_TOKEN_REQUEST_URL:-NO}"
-          echo "id-token TOKEN set? -> ${ACTIONS_ID_TOKEN_REQUEST_TOKEN:+YES}${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-NO}"
-          echo "--- effective .npmrc (userconfig) ---"
-          cat "${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}" 2>/dev/null | sed 's/_authToken=.*/_authToken=<redacted>/' || echo "(none)"
-          echo "--- npm version ---"; npm --version
-
       - name: Publish
-        run: npm publish --access public --loglevel verbose
+        run: npm publish --access public
