@@ -1,6 +1,6 @@
 {
   "name": "dsh-video-preview",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Inline video preview for dsh-better-sidebar: plays .mp4/.webm/.mov/.mkv/.avi etc. in the sidebar editor with HTTP Range (seeking) support via a dedicated /video host route",
   "type": "module",
   "main": "index.js",
