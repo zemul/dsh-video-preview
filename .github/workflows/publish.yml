@@ -24,7 +24,6 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
-          always-auth: true
 
       # Trusted Publishing (OIDC) 需要 npm >= 11.5.1；Node 22 自带 npm 10，
       # 必须显式升级到 11.5.1 及以上，否则会退回无凭据流程导致 E404。
