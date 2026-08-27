@@ -27,9 +27,11 @@ jobs:
           always-auth: true
 
       # Trusted Publishing (OIDC) 需要 npm >= 11.5.1；Node 22 自带 npm 10，
-      # 这里升级到 11（不用 latest，避免其引擎要求跳动导致装不上）。
+      # 必须显式升级到 11.5.1 及以上，否则会退回无凭据流程导致 E404。
       - name: Upgrade npm
-        run: npm install -g npm@11
+        run: |
+          npm install -g npm@^11.5.1
+          npm --version
 
       # 发布前跑一遍宿主路由回归测试，避免把坏版本发出去。
       - name: Run route tests
