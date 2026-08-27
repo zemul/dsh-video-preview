@@ -22,12 +22,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: https://registry.npmjs.org/
+          always-auth: true
 
-      # Trusted Publishing (OIDC) 需要较新的 npm CLI。
+      # Trusted Publishing (OIDC) 需要 npm >= 11.5.1；Node 22 自带 npm 10，
+      # 这里升级到 11（不用 latest，避免其引擎要求跳动导致装不上）。
       - name: Upgrade npm
-        run: npm install -g npm@latest
+        run: npm install -g npm@11
 
       # 发布前跑一遍宿主路由回归测试，避免把坏版本发出去。
       - name: Run route tests
