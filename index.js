@@ -26,8 +26,11 @@ import { extname, resolve, sep } from 'node:path'
 /** Plugin identity for cordis.yml rows / client-modules keying. */
 export const name = 'dsh-video-preview'
 
-/** Services required before mounting: route registration + session cwd + the web runtime's trusted hosts. */
-export const inject = ['webServer', 'sessions', 'webRuntime']
+/** Services required before mounting: route registration + session cwd + the web
+ *  startup's trusted hosts. `webStartup` carries `trustedHosts` since dsh 0.2.1
+ *  (the older `webRuntime` service no longer exists, so injecting it left the
+ *  host half pending forever). */
+export const inject = ['webServer', 'sessions', 'webStartup']
 
 /** Content types for the video route, by extension. */
 const VIDEO_TYPES = {
@@ -194,7 +197,18 @@ function parseRange(raw, size) {
   return { start, end: Math.min(end, size - 1) }
 }
 
-/** Render one response for a range or full request. */
+/** Render one response for a range or full request.
+ *
+ * Every reply is `206` + `Content-Range`, including requests without a `Range`
+ * header (for which RFC 9110 would allow a plain `200`). The desktop shell
+ * forces that deviation: its protocol forwarder drops `content-length` before
+ * the renderer sees the response (`WITHHELD_RESPONSE_HEADERS` in the shell's
+ * main.js), so Chromium treats a `200` as a length-less stream and collapses
+ * `seekable` to `[0, 0]` — the player then refuses every seek and the progress
+ * bar snaps back. `Content-Range` carries the total size on its own, so a
+ * `206` keeps seeking working whether or not the shell relays
+ * `content-length`.
+ */
 function serveFile(req, res, path, size, type) {
   const headers = {
     'content-type': type,
@@ -209,29 +223,19 @@ function serveFile(req, res, path, size, type) {
     return
   }
 
-  if (range !== null) {
-    const { start, end } = range
-    res.writeHead(206, {
-      ...headers,
-      'content-range': `bytes ${start}-${end}/${size}`,
-      'content-length': String(end - start + 1),
-    })
-    if (req.method === 'HEAD') {
-      res.end()
-      return
-    }
-    const stream = createReadStream(path, { start, end })
-    stream.on('error', () => res.destroy())
-    stream.pipe(res)
-    return
-  }
-
-  res.writeHead(200, { ...headers, 'content-length': String(size) })
+  // No Range header means "the whole file", which is exactly the 0..size-1 range.
+  const start = range === null ? 0 : range.start
+  const end = range === null ? size - 1 : range.end
+  res.writeHead(206, {
+    ...headers,
+    'content-range': `bytes ${start}-${end}/${size}`,
+    'content-length': String(end - start + 1),
+  })
   if (req.method === 'HEAD') {
     res.end()
     return
   }
-  const stream = createReadStream(path)
+  const stream = createReadStream(path, { start, end })
   stream.on('error', () => res.destroy())
   stream.pipe(res)
 }
@@ -239,7 +243,12 @@ function serveFile(req, res, path, size, type) {
 // ── plugin body ──────────────────────────────────────────────────────────────
 
 export function apply(ctx) {
-  const fence = (req) => isTrustedApiRequest(req, ctx.webRuntime.trustedHosts)
+  // Read the trusted hosts defensively: `webStartup` is the current home, the
+  // `webRuntime` fallback keeps suites that still expose the old service
+  // working. Anything unexpected degrades to loopback-only trust.
+  const trusted = ctx.webStartup?.trustedHosts ?? ctx.webRuntime?.trustedHosts
+  const trustedHosts = Array.isArray(trusted) ? trusted.filter((e) => typeof e === 'string') : []
+  const fence = (req) => isTrustedApiRequest(req, trustedHosts)
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'prefix',

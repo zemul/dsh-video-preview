@@ -3,7 +3,7 @@
  *
  * No ffmpeg or external fixtures required: it fabricates a byte file in a temp
  * dir, mounts the host half against a real node http server, and asserts the
- * Range/security semantics (200 full, 206 ranges, suffix range, 416, 403 path
+ * Range/security semantics (206 full, 206 ranges, suffix range, 416, 403 path
  * escape, cross-site 403, HEAD, POST 405).
  *
  *   node test/route.test.mjs
@@ -27,7 +27,7 @@ const size = bytes.length
 let handler = null
 const fakeCtx = {
   sessions: { get: (id) => (id === 'sess-1' ? { header: { cwd: root } } : undefined) },
-  webRuntime: { trustedHosts: [] },
+  webStartup: { trustedHosts: [] },
   webServer: { register: (entry) => { handler = entry.handler; return () => {} } },
   effect: (fn) => { fn(); return () => {} },
 }
@@ -45,8 +45,13 @@ const check = (name, cond, extra = '') => {
 }
 const req = (path, opts = {}) => fetch(path, opts).then(async (res) => ({ status: res.status, headers: res.headers, buf: Buffer.from(await res.arrayBuffer()) }))
 
+// No Range header: answered as the whole-file 206 (Content-Range carries the
+// total size, which the desktop shell's forwarder needs since it strips
+// content-length — see the serveFile() note).
 const r1 = await req(url())
-check('GET 200', r1.status === 200)
+check('GET no-range 206', r1.status === 206)
+check('no-range content-range whole file', r1.headers.get('content-range') === `bytes 0-${size - 1}/${size}`)
+check('no-range content-length', r1.headers.get('content-length') === String(size))
 check('content-type video/mp4', r1.headers.get('content-type') === 'video/mp4')
 check('accept-ranges bytes', r1.headers.get('accept-ranges') === 'bytes')
 check('full body equals file', r1.buf.equals(bytes))
@@ -78,7 +83,7 @@ const r8 = await req(url(), { headers: { 'sec-fetch-site': 'cross-site', origin:
 check('cross-site 403', r8.status === 403)
 
 const r9 = await req(url(), { method: 'HEAD' })
-check('HEAD 200', r9.status === 200)
+check('HEAD 206', r9.status === 206)
 check('HEAD empty body', r9.buf.length === 0)
 
 const r10 = await req(url(), { method: 'POST' })
