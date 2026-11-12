@@ -14,8 +14,9 @@
  * ranges (`bytes=-N`).
  *
  * Security posture mirrors better-sidebar's own routes:
- *  - same Host-header trust fence as the `/api` gateway (loopback or the web
- *    runtime's `trustedHosts`; cross-site browser markers refused);
+ *  - the Connection service's own request fence (`requestRejection`: Host/Origin
+ *    trust plus browser authentication), exactly as better-sidebar calls it —
+ *    never a locally copied trust list;
  *  - the resolved path must sit under the session's authoritative working
  *    directory (case/separator tolerant), so a crafted `..` can never escape.
  */
@@ -26,8 +27,8 @@ import { extname, resolve, sep } from 'node:path'
 /** Plugin identity for cordis.yml rows / client-modules keying. */
 export const name = 'dsh-video-preview'
 
-/** Services required before mounting: route registration + session cwd + the web runtime's trusted hosts. */
-export const inject = ['webServer', 'sessions', 'webRuntime']
+/** Services required before mounting: route registration + session cwd + the Connection request fence. */
+export const inject = ['webServer', 'sessions', 'connection']
 
 /** Content types for the video route, by extension. */
 const VIDEO_TYPES = {
@@ -49,59 +50,14 @@ const VIDEO_TYPES = {
   '.3g2': 'video/3gpp2',
 }
 
-// ── browser-trust fence (same semantics as @deepseek-ai/dsh-client-connection's
-//    /api gateway; inlined so the plugin carries no internal dependency) ──────
+// ── header access ───────────────────────────────────────────────────────────
+// The Host/Origin fence is NOT reimplemented here: it is the Connection
+// service's own policy (`requestRejection`), so this plugin can never drift
+// from — or weaken — the deployment trust and browser-auth rules.
 
 function header(headers, name_) {
   const value = headers[name_]
   return typeof value === 'string' ? value : undefined
-}
-
-function parseAuthority(authority) {
-  try {
-    return new URL(`http://${authority}`)
-  } catch {
-    return undefined
-  }
-}
-
-function isLoopbackHostname(hostname) {
-  if (hostname === 'localhost' || hostname === '[::1]') return true
-  const parts = hostname.split('.')
-  return parts.length === 4
-    && parts[0] === '127'
-    && parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255)
-}
-
-function canonicalAuthority(entry, entryUrl) {
-  const port = entryUrl.port !== '' ? entryUrl.port : new URL(`https://${entry}`).port
-  return port === '' ? entryUrl.hostname : `${entryUrl.hostname}:${port}`
-}
-
-function isTrustedAuthority(hostUrl, trustedHosts) {
-  return trustedHosts.some((entry) => {
-    const entryUrl = parseAuthority(entry)
-    if (entryUrl === undefined) return false
-    return canonicalAuthority(entry, entryUrl) === entryUrl.hostname
-      ? entryUrl.hostname === hostUrl.hostname
-      : entryUrl.host === hostUrl.host
-  })
-}
-
-function isTrustedApiRequest(request, trustedHosts) {
-  const host = header(request.headers, 'host')
-  if (host === undefined) return false
-  const hostUrl = parseAuthority(host)
-  if (hostUrl === undefined) return false
-  if (!isLoopbackHostname(hostUrl.hostname) && !isTrustedAuthority(hostUrl, trustedHosts)) return false
-  if (header(request.headers, 'sec-fetch-site') === 'cross-site') return false
-  const origin = header(request.headers, 'origin')
-  if (origin === undefined) return true
-  try {
-    return new URL(origin).host === hostUrl.host
-  } catch {
-    return false
-  }
 }
 
 // ── path helpers (same semantics as better-sidebar's src/fs-tree.ts) ────────
@@ -239,7 +195,9 @@ function serveFile(req, res, path, size, type) {
 // ── plugin body ──────────────────────────────────────────────────────────────
 
 export function apply(ctx) {
-  const fence = (req) => isTrustedApiRequest(req, ctx.webRuntime.trustedHosts)
+  // Connection owns deployment trust and browser authentication; never infer or
+  // bypass its policy from a copied trust list (same call as better-sidebar).
+  const fence = (req) => ctx.connection.requestRejection(req) === undefined
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'prefix',
