@@ -26,9 +26,22 @@ window.__ModuleLoader__.load({
       "ogv", "ogg", "mpeg", "mpg", "3gp", "3g2", "m2ts"
     ];
 
+    /** Resolve the viewer's path to the absolute form the host route requires.
+     *  better-sidebar hands FileViewerProps.path to file viewers as a
+     *  workspace-relative path (e.g. "tmp/clip.mp4"), while the host half needs
+     *  an absolute one — passing the relative path through produced a 400 for
+     *  every video opened from the sidebar. Already-absolute paths pass through;
+     *  mixed separators are fine because the host normalises with path.resolve. */
+    function absolutePath(scope, path) {
+      if (/^[A-Za-z]:[\\/]/.test(path) || path.startsWith("/") || path.startsWith("\\\\")) return path;
+      var cwd = (scope && scope.cwd) || "";
+      if (cwd === "") return path;
+      return String(cwd).replace(/[\\/]+$/, "") + "/" + path;
+    }
+
     /** Absolute URL of the plugin's range-capable video route. */
     function videoUrl(scope, path) {
-      var params = new URLSearchParams({ sessionId: scope.sessionId, path: path });
+      var params = new URLSearchParams({ sessionId: scope.sessionId, path: absolutePath(scope, path) });
       if (scope.cwd !== undefined && scope.cwd !== "") params.set("cwd", scope.cwd);
       return "/video?" + params.toString();
     }
