@@ -9,7 +9,14 @@
 [dsh-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) 的视频文件预览插件：
 在侧边栏打开 `.mp4` / `.webm` / `.mov` / `.mkv` / `.avi` 等视频文件时，内联渲染一个可播放、可拖拽进度条的 `<video>` 播放器。
 
+> **与 better-sidebar 内置播放器的关系**：better-sidebar 自 v0.30.1 起自带音视频预览
+> （`.mp4/.m4v/.webm/.ogv/.mov`，走支持 Range 的 `/sidebar/file`）。两者同时安装时，
+> 这些扩展名由内置预览器优先命中；本插件主要补齐内置未覆盖的格式（`.mkv/.avi/.wmv/.flv/.mpeg/.3gp/.m2ts` 等），
+> 并在加载失败时显示原因。
+
 ## 背景
+
+> 以下为 better-sidebar v0.30.1 之前的背景。
 
 better-sidebar 内置的文件预览器只有 image / pdf / markdown / html / code / binary-download，
 **没有视频预览**——视频文件目前会落到 code 视图（乱码）或下载按钮。
@@ -32,9 +39,10 @@ better-sidebar 内置的文件预览器只有 image / pdf / markdown / html / co
 - viewer 描述符带 `title`/`icon`，Side card 设置页自动显示启用开关（含 16px 播放器图标）
 - 客户端组件自包含：不依赖 better-sidebar 的 client 内部实现，`fetchStrategy: 'none'`
 
-## 依赖 better-sidebar 版本
+## 版本要求
 
-需要 better-sidebar `>= 0.4.0`（`ctx.betterSidebar.registerFileViewer` 服务）。
+- DSH `>= 0.2`（使用 `connection.requestRejection` 做 Host/Origin 校验与浏览器身份认证）；DSH 0.1.x 请用本插件 0.1.4；
+- better-sidebar `>= 0.4.0`（`ctx.betterSidebar.registerFileViewer` 服务）。
 
 ## 安装（profile）
 
@@ -48,7 +56,7 @@ dsh plugin --profile web add dsh-video-preview
 dsh plugin --profile web add "link:<本目录>"
 
 # 从 tarball 安装（离线 / 未发布）：
-dsh plugin --profile web add file:<本目录>/dsh-video-preview-0.1.1.tgz
+npm pack && dsh plugin --profile web add file:<本目录>/dsh-video-preview-<版本>.tgz
 ```
 
 安装后重启 `dsh web` 进程并浏览器硬刷新（`Cmd/Ctrl+Shift+R`）。
@@ -62,7 +70,7 @@ dsh plugin --profile web add file:<本目录>/dsh-video-preview-0.1.1.tgz
 ## 开发与检查
 
 ```sh
-node test/route.test.mjs   # 宿主路由回归测试（Range/206/416/403/HEAD/405，19 项）
+node test/route.test.mjs   # 宿主路由回归测试（Range/206/416/403/HEAD/405）
 ```
 
 | 检查项 | 命令 | 预期 |
@@ -76,21 +84,24 @@ node test/route.test.mjs   # 宿主路由回归测试（Range/206/416/403/HEAD/4
 
 | 文件 | 作用 |
 |---|---|
-| `index.js` | 宿主半：注册 `/video/*` 前缀路由（Host 头信任围栏 + 会话 cwd 越界检查 + Range/If-Range/suffix-range） |
+| `index.js` | 宿主半：注册 `/video/*` 前缀路由（Connection 请求围栏 + 会话 cwd 越界检查 + Range/If-Range/suffix-range） |
 | `client.js` | 客户端 bundle：经 `ctx.betterSidebar.registerFileViewer` 注册 `video` 预览器（`fetchStrategy: 'none'`，含 16px 图标） |
 | `cordis.patch.yml` | `dsh.bundle.patch`：挂载行（entry `name` 与包名一致，供 client-modules 发现 client bundle） |
 | `test/route.test.mjs` | 宿主路由回归测试（自包含，无需 ffmpeg） |
 
 ## 安全
 
-- 路由复用与 `/api` 网关相同的 Host 头信任围栏（loopback 或 `trustedHosts`，拒绝跨站）；
+- 路由直接调用 DSH Connection 服务的 `requestRejection`（与 better-sidebar 相同）：Host/Origin 信任 + 浏览器登录 cookie 校验，不在插件内复制信任列表；
 - 解析后的路径必须位于会话权威工作目录内（大小写/分隔符容忍），`..` 无法越界；
 - 只读流式下发，不写文件、不设身份。
 
 ## 说明与限制
 
 - 支持浏览器可解码的容器/编码（H.264 的 mp4/m4v、VP8/VP9 的 webm、mov、OGV 等）；
-  Chrome/Edge/Firefox 不内置解码的格式（如部分 HEVC、AV1 组合）会在播放器内报错，可用「下载」取回原文件；
+  浏览器无法解码的格式（如 avi/wmv/flv、部分 HEVC）或路由拒绝（越出会话工作区 403 等）时，播放器下方会显示原因，可用「下载」取回原文件；
+- 侧栏传入的工作区相对路径会先按会话 `cwd` 补成绝对路径再请求 `/video`；
+- **桌面端（DeepSeek Harness App）暂时无法拖动进度条**：App 的 `dsh-app://` 转发层会去掉响应的 `content-length`，
+  Chromium 因此认为媒体不可 seek（better-sidebar 内置播放器同样受影响），需 DSH 桌面端修复；`dsh web` 浏览器中正常；
 - 视频大小不受 better-sidebar `mediaLimit` 限制；
 - 不新建 Tab 页，仅作为文件预览器注册（也可按需再加 `registerTab`）。
 

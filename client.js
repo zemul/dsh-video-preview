@@ -93,6 +93,28 @@ window.__ModuleLoader__.load({
       var path = props.path;
       var url = videoUrl(scope, path);
       var dl = downloadUrl(scope, path);
+      // A failed <video> load is otherwise a silent black box (#5): on error,
+      // ask the route itself why (403 outside the workspace, 400 bad path, …)
+      // and show that message instead of an empty player.
+      var errState = import_react.useState(null);
+      var error = errState[0];
+      var setError = errState[1];
+      import_react.useEffect(function () { setError(null); }, [url]);
+      function onVideoError() {
+        fetch(url, { headers: { Range: "bytes=0-0" } }).then(function (res) {
+          if (res.ok) {
+            setError("\u6D4F\u89C8\u5668\u65E0\u6CD5\u89E3\u7801\u8BE5\u89C6\u9891\u683C\u5F0F\uFF0C\u53EF\u70B9\u53F3\u4E0B\u89D2\u4E0B\u8F7D\u540E\u7528\u672C\u5730\u64AD\u653E\u5668\u6253\u5F00");
+            return;
+          }
+          return res.json().then(function (body) {
+            return body && body.error && body.error.message;
+          }, function () { return undefined; }).then(function (message) {
+            setError("\u65E0\u6CD5\u52A0\u8F7D\u89C6\u9891\uFF08HTTP " + res.status + "\uFF09" + (message ? "\uFF1A" + message : ""));
+          });
+        }, function () {
+          setError("\u65E0\u6CD5\u52A0\u8F7D\u89C6\u9891\uFF1A\u7F51\u7EDC\u9519\u8BEF");
+        });
+      }
       return import_react.createElement("div", {
         style: {
           display: "flex",
@@ -111,6 +133,7 @@ window.__ModuleLoader__.load({
           controls: true,
           preload: "metadata",
           playsInline: true,
+          onError: onVideoError,
           style: {
             width: "100%",
             maxHeight: "100%",
@@ -121,6 +144,17 @@ window.__ModuleLoader__.load({
             outline: "none"
           }
         }),
+        error === null ? null : import_react.createElement("div", {
+          key: "err",
+          role: "alert",
+          style: {
+            flex: "none",
+            fontSize: "12px",
+            lineHeight: "18px",
+            color: "var(--dsw-alias-label-danger, #e5484d)",
+            wordBreak: "break-word"
+          }
+        }, error),
         import_react.createElement("div", {
           key: "meta",
           style: {
