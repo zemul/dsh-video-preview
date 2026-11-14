@@ -25,9 +25,17 @@ writeFileSync(file, bytes)
 const size = bytes.length
 
 let handler = null
+let fenceCalls = 0
 const fakeCtx = {
   sessions: { get: (id) => (id === 'sess-1' ? { header: { cwd: root } } : undefined) },
-  webRuntime: { trustedHosts: [] },
+  // The Host/Origin + browser-auth fence belongs to the Connection service
+  // (DSH 0.2.x); the plugin must delegate to it, never copy a trust list.
+  connection: {
+    requestRejection: (request) => {
+      fenceCalls++
+      return request.headers['sec-fetch-site'] === 'cross-site' ? 403 : undefined
+    },
+  },
   webServer: { register: (entry) => { handler = entry.handler; return () => {} } },
   effect: (fn) => { fn(); return () => {} },
 }
@@ -76,6 +84,7 @@ check('relative path 400', r7.status === 400)
 
 const r8 = await req(url(), { headers: { 'sec-fetch-site': 'cross-site', origin: 'http://evil.example' } })
 check('cross-site 403', r8.status === 403)
+check('connection fence consulted', fenceCalls > 0, `${fenceCalls} calls`)
 
 const r9 = await req(url(), { method: 'HEAD' })
 check('HEAD 200', r9.status === 200)
